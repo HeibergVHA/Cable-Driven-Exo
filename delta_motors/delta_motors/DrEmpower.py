@@ -70,7 +70,7 @@ disable_angle_speed_torque_state: Disable real-time angle, speed and torque feed
 import sys
 import time
 try:
-    from delta_motors import *  # ROS2 package layout
+    from delta_motors.parameter_interface import *  # ROS2 package layout
 except ImportError:
     from parameter_interface import *
 import math as cm
@@ -86,7 +86,7 @@ uart_baudrate = 115200 # Serial baud rate, must match the CAN module's serial ba
 # motor_node sets these from its 'can_interface' / 'port' parameters.
 if os.environ.get('DREMPOWER_CAN'):
     try:
-        from delta_motors import CanSerialShim
+        from delta_motors.can_shim import CanSerialShim  # ROS2 package layout
     except ImportError:
         from can_shim import CanSerialShim
     com = os.environ['DREMPOWER_CAN']

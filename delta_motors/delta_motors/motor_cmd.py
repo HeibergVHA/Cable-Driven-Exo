@@ -33,7 +33,7 @@ class MotorCmd(Node):
     def on_state(self, msg):
         self.latest = dict(zip(msg.name, msg.position))
 
-    def handle(self, line):
+    def handle_line(self, line):
         parts = line.split()
         if not parts:
             return True
@@ -71,7 +71,7 @@ def main():
             if line.strip() in ('help', '?'):
                 print(__doc__)
                 continue
-            if not node.handle(line):
+            if not node.handle_line(line):
                 break
     except (KeyboardInterrupt, EOFError):
         pass
