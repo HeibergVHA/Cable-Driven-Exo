@@ -69,10 +69,7 @@ disable_angle_speed_torque_state: Disable real-time angle, speed and torque feed
 """
 import sys
 import time
-try:
-    from delta_motors.parameter_interface import *  # ROS2 package layout
-except ImportError:
-    from parameter_interface import *
+from delta_motors.parameter_interface import *
 import math as cm
 import struct
 import os
@@ -85,10 +82,7 @@ uart_baudrate = 115200 # Serial baud rate, must match the CAN module's serial ba
 #   DREMPOWER_PORT=/dev/ttyACM0 -> Daran's own serial USB-CAN module (original behaviour)
 # motor_node sets these from its 'can_interface' / 'port' parameters.
 if os.environ.get('DREMPOWER_CAN'):
-    try:
-        from delta_motors.can_shim import CanSerialShim  # ROS2 package layout
-    except ImportError:
-        from can_shim import CanSerialShim
+    from delta_motors.can_shim import CanSerialShim
     com = os.environ['DREMPOWER_CAN']
     uart = CanSerialShim(channel=com, timeout=0.5)
 else:
@@ -294,8 +288,16 @@ def set_angles(id_list=[1, 2, 3], angle_list=[0, 0, 0], speed=10, param=10, mode
                     else:
                         angle_speed_torque_states(id_list=id_list)  # Clear leftover data from the previous run
                         angle_speed_torques = angle_speed_torque_states(id_list=id_list)
+                        if angle_speed_torques is None:
+                            print("---error in set_angles---: could not read current joint angles")
+                            return False
+                        id_list_sorted = sorted(id_list)  # results come back sorted by ID
                         for i in range(len(id_list)):
-                            cur_angle_list.append(angle_speed_torques[i][0])
+                            state = angle_speed_torques[id_list_sorted.index(id_list[i])]
+                            if state is None:
+                                print("---error in set_angles---: no feedback from joint", id_list[i])
+                                return False
+                            cur_angle_list.append(state[0])
                 if speed > 0 and param > 0:
                     for i in range(len(angle_list)):
                         DETA_angle_list = list(
@@ -2478,7 +2480,7 @@ def format_data(data=[], format="f f", type='decode'):
 
 
 # Preset angle
-def preset_angle(id_num=1, angle=0, t=0, param=0, mode=0):
+def preset_angle(id_num: int = 1, angle: float = 0, t: float = 0, param: float = 0, mode: int = 0):
     """Preset the angle of a single joint.
 
     Presets the target angle of the joint with the given ID; the motion must then be started with an mt or mq command.

@@ -13,6 +13,7 @@ Topic out (feedback):
 
 import os
 import threading
+from typing import Any
 
 import rclpy
 from rclpy.node import Node
@@ -35,7 +36,9 @@ class MotorNode(Node):
         self.declare_parameter('can_interface', 'can0') # SocketCAN adapter; '' = use serial 'port'
         self.declare_parameter('port', '')              # Daran serial module only; '' = first /dev/ttyACM*
 
-        p = lambda n: self.get_parameter(n).value
+        def p(n: str) -> Any:
+            return self.get_parameter(n).value
+
         self.ids = list(p('motor_ids'))
         self.default_speed = float(p('default_speed'))
         self.accel = float(p('accel'))
@@ -50,12 +53,8 @@ class MotorNode(Node):
             elif p('port'):
                 os.environ['DREMPOWER_PORT'] = p('port')
             try:
-                # DrEmpower opens the serial port on import. Look inside this
-                # package first, then anywhere on PYTHONPATH.
-                try:
-                    from delta_motors import DrEmpower as dr
-                except ImportError:
-                    import DrEmpower as dr
+                # DrEmpower opens the serial port on import.
+                from delta_motors import DrEmpower as dr
             except Exception as e:
                 self.get_logger().fatal(
                     f'Could not open DrEmpower ({e}). Is the adapter plugged in and '
