@@ -41,7 +41,9 @@ from delta_motors.parameter_interface import key_find_value, property_type  # no
 TYPE_CODE = {'f': 0, 'u16': 1, 's16': 2, 'u32': 3, 's32': 4}
 TYPE_FMT = {'f': 'f', 'u16': 'H', 's16': 'h', 'u32': 'I', 's32': 'i'}
 CMD_READ_PROP = 0x1E
-STATE_NAMES = {1: 'IDLE (no torque - will NOT move)', 2: 'CLOSED LOOP (ready)'}
+# 2 = closed loop in Daran's numbering, 8 = closed loop in ODrive's (older/PDA-04 firmware)
+STATE_NAMES = {1: 'IDLE (no torque - will NOT move)', 2: 'CLOSED LOOP (ready)', 8: 'CLOSED LOOP (ready)'}
+CLOSED_LOOP = (2, 8)
 BITRATES = [1000000, 500000, 250000, 125000]
 
 CONFIG = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'config', 'motors.yaml')
@@ -106,7 +108,7 @@ def raw_read(bus, id_num, prop, timeout=0.3):
         if m is None:
             break
         d = bytes(m.data)
-        if m.arbitration_id >> 5 == id_num and len(d) == 8 and struct.unpack('<H', d[:2])[0] == addr:
+        if m.arbitration_id >> 5 == id_num and len(d) == 8 and struct.unpack('<H', d[:2])[0] in (addr, 0):  # some firmware replies with address 0
             fmt = TYPE_FMT[property_type[prop]]
             return struct.unpack('<' + fmt, d[4:4 + struct.calcsize(fmt)])[0]
     return None
@@ -123,7 +125,7 @@ def ping_all(bus, ids):
     end = time.time() + 0.5
     while time.time() < end:
         m = bus.recv(0.05)
-        if m is not None and (m.arbitration_id & 0x1F) == CMD_READ_PROP:
+        if m is not None and not m.is_error_frame and (m.arbitration_id & 0x1F) == CMD_READ_PROP:
             found.add(m.arbitration_id >> 5)
     return sorted(found)
 
@@ -183,12 +185,18 @@ def open_bus(iface):
 
 def check_quiet(bus):
     step(4, 'Idle traffic')
-    end, n, ids = time.time() + 0.5, 0, set()
+    end, n, n_err, ids = time.time() + 0.5, 0, 0, set()
     while time.time() < end:
         m = bus.recv(0.05)
-        if m is not None:
-            n += 1
-            ids.add(m.arbitration_id >> 5)
+        if m is None:
+            continue
+        if m.is_error_frame:  # e.g. CAN_ERR_ACK (id 0x20) would otherwise look like motor 1
+            n_err += 1
+            continue
+        n += 1
+        ids.add(m.arbitration_id >> 5)
+    if n_err:
+        report('WARN', f'{n_err} error frames in 0.5 s (no ACK / bus errors, see step 2)')
     if n == 0:
         report('PASS', 'bus is quiet when nothing is sent')
     else:
@@ -234,12 +242,12 @@ def check_health(bus, ids):
               f'error={err if err is None else hex(err)}  angle={angle if angle is None else round(angle, 2)} deg')
         if v is not None and v < 18:
             report('FAIL', f'motor {i}: supply voltage {v:.1f} V is too low', 'Motors need 24 V.')
-        if state != 2:
+        if state not in CLOSED_LOOP:
             report('FAIL', f'motor {i}: state {state} = {STATE_NAMES.get(state, "unknown")}',
                    f'Put it in closed loop: DrEmpower.set_mode(id_num={i}, mode=2)\n'
                    '(it drops to idle after an error, an estop or a set_mode(mode=1)).')
         else:
-            report('PASS', f'motor {i}: {STATE_NAMES[2]}')
+            report('PASS', f'motor {i}: state {state} = {STATE_NAMES[state]}')
         if err:
             report('FAIL', f'motor {i}: error code {hex(err)}',
                    f'Motion is blocked while an error is latched. Clear it with\n'
@@ -299,27 +307,32 @@ def check_move(dr, id_num, step_deg=5.0):
         time.sleep(2)
 
 
+def set_bitrate(iface, br):
+    """Down/up the interface at a new bitrate (also clears error state and queued frames)."""
+    for cmd in (['ip', 'link', 'set', iface, 'down'],
+                ['ip', 'link', 'set', iface, 'type', 'can', 'bitrate', str(br)],
+                ['ip', 'link', 'set', iface, 'up']):
+        subprocess.run(['sudo'] + cmd, check=True)
+
+
 def scan_bitrates(iface):
     print('Trying each bitrate (needs sudo to reconfigure the interface)...')
     hit = None
     for br in BITRATES:
-        for cmd in (['ip', 'link', 'set', iface, 'down'],
-                    ['ip', 'link', 'set', iface, 'type', 'can', 'bitrate', str(br)],
-                    ['ip', 'link', 'set', iface, 'up']):
-            subprocess.run(['sudo'] + cmd, check=True)
+        set_bitrate(iface, br)
         with can.Bus(interface='socketcan', channel=iface) as bus:
             found = ping_all(bus, range(1, 64))
         print(f'  {br:>8} bit/s: {found if found else "no answer"}')
         if found and hit is None:
             hit = br
     if hit:
-        subprocess.run(['sudo', 'ip', 'link', 'set', iface, 'down'], check=True)
-        subprocess.run(['sudo', 'ip', 'link', 'set', iface, 'type', 'can', 'bitrate', str(hit)], check=True)
-        subprocess.run(['sudo', 'ip', 'link', 'set', iface, 'up'], check=True)
+        set_bitrate(iface, hit)
         print(f'\nMotors answer at {hit} bit/s; {iface} is left at that rate. '
               f'Use `bash setup_can.sh {hit}` from now on.')
     else:
-        print('\nNo motor answered at any bitrate: check power and wiring.')
+        set_bitrate(iface, BITRATES[0])  # back to the motors' factory default, errors cleared
+        print(f'\nNo motor answered at any bitrate: check power and wiring. '
+              f'{iface} is back at {BITRATES[0]} bit/s.')
         sys.exit(1)
 
 
