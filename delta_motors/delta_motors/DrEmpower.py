@@ -7,10 +7,10 @@ Platforms: Windows, Linux (Jetson Nano, Raspberry Pi)
 Language: Python 3
 Communication hardware: USB-to-CAN module
 
-****************************Set joint ID*************************
+**************************** Set joint ID *************************
                           set_id: Set the joint ID number.
 
-****************************Motion control functions*************************
+**************************** Motion control functions *************************
                        set_angle: Absolute angle control of a single joint.
                       set_angles: Absolute angle control of multiple joints.
                       step_angle: Relative angle control of a single joint.
@@ -29,7 +29,7 @@ Communication hardware: USB-to-CAN module
                      set_torques: Torque control of multiple joints.
                            estop: Emergency stop.
 
-****************************Parameter read-back functions************************
+**************************** Parameter read-back functions ************************
                           get_id: Read back the joint ID number.
                          get_ids: Read back the ID numbers of multiple joints on the bus
                        get_angle: Read back the joint's current angle.
@@ -44,7 +44,7 @@ disable_angle_speed_torque_state: Disable real-time angle, speed and torque feed
                          get_pid: Read back the control loop position gain P, integral gain I and speed gain D.
                    read_property: Read back a configuration parameter.
 
-****************************Parameter setting functions************************
+**************************** Parameter setting functions ************************
                set_zero_position: Set the joint's current angle as zero; kept after power-off/restart.
           set_zero_position_temp: Set the joint's current angle as zero (temporary); lost after power-off/restart (not available on hollow-shaft joints).
                  set_angle_range: Set joint angle limits for this run; lost after power-off or restart.
@@ -61,7 +61,7 @@ disable_angle_speed_torque_state: Disable real-time angle, speed and torque feed
                   write_property: Write a joint configuration parameter.
                      save_config: Save the joint configuration parameters.
 
-****************************Helper functions************************
+**************************** Helper functions ************************
                       dump_error: Print joint errors.
                           reboot: Reboot the joint.
                      init_config: Restore factory settings.
@@ -130,9 +130,9 @@ def set_id(id_num=0, new_id=0):
         write_property(id_num=id_num, property='dr.config.can_id', value=new_id)
         if read_property(id_num=id_num, property='dr.config.can_id') == new_id:
             save_config(id_num=new_id)
-            print("ID 编号成功修改为：", new_id)
+            print("ID successfully changed to：", new_id)
         else:
-            print("新 ID 编号设置失败")
+            print("Failed to set the new ID number.")
             return False
     except Exception as e:
         print("---error in set_id---：", e)
@@ -164,7 +164,7 @@ def set_zero_position(id_num=0):
         data = format_data([order_num], 'u32', 'encode')
         send_command(id_num=id_num, cmd=0x08, data=data, rtr=0)  # Must be sent as a standard frame (data frame), not a remote frame
         save_config(id_num=id_num)
-        print("零点设置成功！")
+        print("Nulpunktet er indstillet korrekt!")
     except Exception as e:
         print("---error in set_zero_position---：", e)
         return False
@@ -1493,8 +1493,9 @@ def read_property(id_num=0, property=''):
                 return False
         data_type = property_type.get(value_find_key(address))
         data = format_data([address, data_types.get(data_type)], 'u16 u16', 'encode')
+        clear_uart()  # [delta_motors] drop stale frames so the next reply is the answer to this request
         send_command(id_num=id_num, cmd=0x1E, data=data, rtr=0)  # Must be sent as a standard frame (data frame), not a remote frame
-        cdata = receive_data()
+        cdata = receive_reply(id_num=id_num, cmd=0x1E, address=address)  # [delta_motors] was receive_data()
         if READ_FLAG == 1:
             property = format_data(data=cdata, format='u16 u16 ' + data_type, type='decode')
             if len(property) > 0:
@@ -2038,188 +2039,6 @@ def init_config(id_num=0):
 def clear_uart():  # Clear leftover data in the serial port
     uart.flushInput()
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 """
 Internal helper functions, not for users
 """
@@ -2233,7 +2052,7 @@ def write_data(data=[]):
         return result
     except Exception as e:
         print("---error in write_data--：", e)
-        print("重启串口")
+        print("Restart serial port")
         uart.close()
         uart.open()
         result = uart.write(data)  # Write data
@@ -2251,7 +2070,7 @@ def read_data(num=16): # 16 bytes
         i -= 1
         time.sleep(0.001)
         if i == 0:
-            print("数据为空，接收数据超时，程序退出")
+            print("Data is empty, data reception timed out, program exiting.")
             raise TimeoutError('DrEmpower: no reply from motor')  # [delta_motors] was sys.exit()
     while byte_list_head != 170:
         byte_list_head = uart.read(1)[0]
@@ -2283,7 +2102,7 @@ def read_data_state(n): # 16*n bytes
         i -= 1
         time.sleep(0.001)
         if i == 0:
-            print("数据为空，接收数据超时，程序退出")
+            print("Data is empty, data reception timed out, program exiting.")
             raise TimeoutError('DrEmpower: no reply from motor')  # [delta_motors] was sys.exit()
     while byte_list_head != 170:
         byte_list_head = uart.read(1)[0]
@@ -2340,7 +2159,7 @@ def read_data_id(): # 16*n bytes
         i -= 1
         time.sleep(0.001)
         if i == 0:
-            print("数据为空，接收数据超时，程序退出")
+            print("Data is empty, data reception timed out, program exiting.")
             raise TimeoutError('DrEmpower: no reply from motor')  # [delta_motors] was sys.exit()
     while uart.inWaiting() > 0:
         byte_list.append(list(uart.read(1))[0])
@@ -2421,6 +2240,30 @@ def receive_data():
     if READ_FLAG == 1:
         cdata = uart_to_can(data=udata)
         return cdata[3:]
+
+
+# [delta_motors] Like receive_data(), but checks that the reply really answers our request:
+#   - CAN ID low 5 bits == cmd, and CAN ID >> 5 == id_num (any motor when id_num == 0)
+#   - first two data bytes echo the property address that was asked for
+#     (or are 0: some firmware, e.g. the PDA-04, leaves the address/type bytes empty in replies)
+# Frames from other motors / other commands are skipped until the timeout.
+def receive_reply(id_num=0, cmd=0x1E, address=0, timeout=0.5):
+    global READ_FLAG
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        udata = read_data(16)
+        if READ_FLAG != 1:
+            continue
+        cdata = uart_to_can(data=udata)
+        if not cdata:
+            continue
+        can_id = (cdata[1] << 8) | cdata[2]
+        reply_address = cdata[3] | (cdata[4] << 8)
+        if (can_id & 0x1F) == cmd and (id_num == 0 or can_id >> 5 == id_num) and reply_address in (address, 0):
+            return cdata[3:]
+        print("receive_reply: skipped frame from CAN id " + hex(can_id) + " (motor " + str(can_id >> 5) + ")")
+    READ_FLAG = -1
+    raise TimeoutError('DrEmpower: no matching reply from motor ' + str(id_num))
 
 def format_data(data=[], format="f f", type='decode'):
     # print("format_data data:", data)

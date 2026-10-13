@@ -1,0 +1,8 @@
+{
+  "extraPaths": [
+    "delta_motors",
+    "/opt/ros/jazzy/lib/python3.12/site-packages",
+    "/usr/lib/python3/dist-packages"
+  ],
+  "reportUnusedCallResult": "none"
+}

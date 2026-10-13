@@ -1,6 +1,6 @@
 delta_motors:
   ros__parameters:
-    motor_ids: [1]          # CAN IDs of the joints on the bus, e.g. [1, 2, 3]
+    motor_ids: [7]          # CAN IDs of the joints on the bus, e.g. [1, 2, 3]
     default_speed: 10.0     # r/min at the output shaft when no speed is given
     accel: 10.0             # r/min/s, trapezoidal acceleration
     angle_min: -90.0        # software limits in degrees, applied to every command
