@@ -1,0 +1,15 @@
+services:
+  ros:
+    build:
+      context: .
+      platforms: [linux/arm64]
+    image: my-ros2-app:latest
+    network_mode: host        # simplest way to get DDS discovery working
+    ipc: host
+    privileged: true          # or replace with specific devices below
+    # devices:
+    #   - /dev/gpiochip4      # Pi 5 header GPIO (RP1)
+    #   - /dev/ttyUSB0
+    #   - /dev/video0
+    command: ros2 launch my_cpp_pkg my_launch.py
+    restart: unless-stopped

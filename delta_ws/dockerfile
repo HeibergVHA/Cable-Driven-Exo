@@ -1,0 +1,56 @@
+# syntax=docker/dockerfile:1
+# ROS 2 on Raspberry Pi 5 (linux/arm64) with C++ (ament_cmake) and Python (ament_python) packages.
+# Expected layout next to this file:
+#   src/my_cpp_pkg/     (ament_cmake)
+#   src/my_py_pkg/      (ament_python)
+
+ARG ROS_DISTRO=jazzy
+
+################## Stage 1: build ####################
+FROM ros:${ROS_DISTRO}-ros-base AS builder
+ARG ROS_DISTRO
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential cmake git \
+        python3-pip python3-colcon-common-extensions python3-rosdep \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /ws
+COPY src/ src/
+
+# Resolve every dependency declared in package.xml files (C++ and Python alike)
+RUN apt-get update \
+    && (rosdep init 2>/dev/null || true) && rosdep update \
+    && rosdep install --from-paths src --ignore-src -r -y \
+    && rm -rf /var/lib/apt/lists/*
+
+# Pi 5 has 4 cores; limit parallelism if you build on-device with little RAM
+RUN . /opt/ros/${ROS_DISTRO}/setup.sh \
+    && colcon build \
+        --cmake-args -DCMAKE_BUILD_TYPE=Release \
+        --parallel-workers 4
+
+############### Stage 2: runtime ##############
+FROM ros:${ROS_DISTRO}-ros-base AS runtime
+ARG ROS_DISTRO
+ENV DEBIAN_FRONTEND=noninteractive \
+    ROS_DISTRO=${ROS_DISTRO} \
+    RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+
+WORKDIR /ws
+
+# Install only runtime (exec) dependencies
+COPY src/ /tmp/src/
+RUN apt-get update \
+    && (rosdep init 2>/dev/null || true) && rosdep update \
+    && rosdep install --from-paths /tmp/src --ignore-src -r -y \
+         --dependency-types=exec \
+    && rm -rf /var/lib/apt/lists/* /tmp/src
+
+COPY --from=builder /ws/install /ws/install
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["bash"]
