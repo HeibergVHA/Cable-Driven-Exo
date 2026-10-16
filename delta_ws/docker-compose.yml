@@ -4,6 +4,8 @@ services:
       context: .
       platforms: [linux/arm64]
     image: my-ros2-app:latest
+    volumes:
+      - ./src/python_package2343/python_package2343:/ws/install/python_package2343/lib/python3.12/site-packages/python_package2343
     network_mode: host        # simplest way to get DDS discovery working
     ipc: host
     #privileged: true          # or replace with specific devices below
