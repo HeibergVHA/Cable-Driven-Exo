@@ -35,8 +35,8 @@ class PythonNode(Node):
                         bus.read_byte(addr)
                         print(f"  Found I2C 0x{addr:02X}")
                     except OSError:
-                        print(f"  No device found")
-                        #pass  # no device at this address
+                        # print(f"  No device found")
+                        pass  # no device at this address
 
             self.tcadisable(bus)  # leave all channels off
             print("done")
