@@ -26,14 +26,14 @@ class PythonNode(Node):
 
             for ch in range(8):
                 self.tcaselect(bus, ch)
-                print(f"TCA Port #{ch}")
+                self.get_logger().info(f"TCA Port #{ch}")
 
                 for addr in range(0x03, 0x78):  # valid 7-bit addresses
                     if addr == self.TCAADDR:
                         continue
                     try:
                         bus.read_byte(addr)
-                        print(f"  Found I2C 0x{addr:02X}")
+                        self.get_logger().info(f"  Found I2C 0x{addr:02X}")
                     except OSError:
                         # print(f"  No device found")
                         pass  # no device at this address
