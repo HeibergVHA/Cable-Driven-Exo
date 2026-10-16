@@ -40,6 +40,10 @@ ENV DEBIAN_FRONTEND=noninteractive \
 
 WORKDIR /ws
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        i2c-tools python3-smbus2 \
+    && rm -rf /var/lib/apt/lists/*
+
 # Install only runtime (exec) dependencies
 COPY src/ /tmp/src/
 RUN apt-get update \
