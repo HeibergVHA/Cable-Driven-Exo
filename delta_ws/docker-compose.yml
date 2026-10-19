@@ -1,17 +1,40 @@
 services:
-  ros:
+  # ---- Development: mount source, build inside the container ----
+  dev:
     build:
       context: .
-      platforms: [linux/arm64]
+      target: dev
+    image: my-ros2-dev:latest
+    network_mode: host
+    ipc: host
+    stdin_open: true          # -i
+    tty: true                 # -t
+    volumes:
+      - ./src:/ws/src                 # your code: edit on the host, build in the container
+      - ros-build:/ws/build           # build artifacts persist between runs
+      - ros-install:/ws/install
+      - ros-log:/ws/log
+    devices:
+      - /dev/i2c-1
+      # - /dev/gpiochip4
+      # - /dev/ttyUSB0
+    command: bash
+
+  # ---- Deployment: self-contained image with compiled code baked in ----
+  app:
+    profiles: [prod]
+    build:
+      context: .
+      target: runtime
     image: my-ros2-app:latest
-    volumes: # mount workspace?
-      - ./src/python_i2c_scanner/python_i2c_scanner:/ws/install/python_i2c_scanner/lib/python3.12/site-packages/python_i2c_scanner
-    network_mode: host        # DDS discovery
+    network_mode: host
     ipc: host
     devices:
-      - /dev/i2c-1:/dev/i2c-1
-    #   - /dev/gpiochip4      # Pi 5 header GPIO (RP1)
-    #   - /dev/ttyUSB0
-    #   - /dev/video0
+      - /dev/i2c-1
     command: ros2 launch python_i2c_scanner abc.launch.py
     restart: unless-stopped
+
+volumes:
+  ros-build:
+  ros-install:
+  ros-log:
