@@ -19,8 +19,8 @@ public:
         mux_address_ = 0x70;
         sensor_address_ = 0x36;
 
-        channel_1_ = 0;
-        channel_2_ = 1;
+        channel_1_ = 2;
+        channel_2_ = 3;
 
         // Open I2C bus
         const std::string device =
