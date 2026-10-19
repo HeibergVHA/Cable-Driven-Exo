@@ -16,7 +16,6 @@ add_executable(AS5600_reader src/AS5600_reader.cpp)
 ament_target_dependencies(AS5600_reader rclcpp)
 
 install(TARGETS AS5600_reader DESTINATION lib/${PROJECT_NAME})
-ament_package()
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
