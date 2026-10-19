@@ -10,7 +10,7 @@ class PythonNode(Node):
 
     def __init__(self):
         super().__init__('tca_scanner')
-        #self.scan()
+        self.scan()
 
     def tcaselect(self, bus, channel):
         if channel > 7:
@@ -47,7 +47,7 @@ class PythonNode(Node):
 def main(args=None):
     rclpy.init(args=args)
     node = PythonNode()
-    rclpy.spin_once(node.scan())
+    #rclpy.spin_once(node)
     node.destroy_node()
     rclpy.shutdown()
 
