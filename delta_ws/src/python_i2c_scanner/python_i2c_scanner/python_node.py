@@ -10,10 +10,12 @@ class PythonNode(Node):
 
     def __init__(self):
         super().__init__('tca_scanner')
-        self.scan()
-
+        
         self.tca_scanner_pub = self.create_publisher(
         String, 'tca_scanner', 10)
+
+        self.scan()
+
 
     def tcaselect(self, bus, channel):
         if channel > 7:
