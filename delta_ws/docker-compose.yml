@@ -5,7 +5,7 @@ services:
       platforms: [linux/arm64]
     image: my-ros2-app:latest
     volumes: # mount workspace?
-      - ./src/python_package2343/python_package2343:/ws/install/python_package2343/lib/python3.12/site-packages/python_package2343
+      - ./src/python_i2c_scanner/python_i2c_scanner:/ws/install/python_i2c_scanner/lib/python3.12/site-packages/python_i2c_scanner
     network_mode: host        # DDS discovery
     ipc: host
     devices:
@@ -13,5 +13,5 @@ services:
     #   - /dev/gpiochip4      # Pi 5 header GPIO (RP1)
     #   - /dev/ttyUSB0
     #   - /dev/video0
-    command: ros2 launch python_package2343 abc.launch.py
+    command: ros2 launch python_i2c_scanner abc.launch.py
     restart: unless-stopped
