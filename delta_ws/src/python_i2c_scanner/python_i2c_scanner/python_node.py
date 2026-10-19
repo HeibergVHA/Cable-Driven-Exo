@@ -10,7 +10,7 @@ class PythonNode(Node):
 
     def __init__(self):
         super().__init__('tca_scanner')
-        
+
         self.tca_scanner_pub = self.create_publisher(
         String, 'tca_scanner', 10)
 
@@ -42,7 +42,8 @@ class PythonNode(Node):
                     try:
                         bus.read_byte(addr)
                         self.get_logger().info(f"  Found I2C 0x{addr:02X}")
-                        msg = f"ch: {ch}  addr: 0x{addr:02X}"
+                        msg = String()
+                        msg.data = f"ch: {ch}  addr: 0x{addr:02X}"
                         self.tca_scanner_pub.publish(msg)
                     except OSError:
                         # print(f"  No device found")
