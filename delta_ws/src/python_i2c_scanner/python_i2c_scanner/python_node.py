@@ -33,7 +33,7 @@ class PythonNode(Node):
                         continue
                     try:
                         bus.read_byte(addr)
-                        self.get_logger().info(f"  dick Found I2C 0x{addr:02X}")
+                        self.get_logger().info(f"  Found I2C 0x{addr:02X}")
                     except OSError:
                         # print(f"  No device found")
                         pass  # no device at this address
