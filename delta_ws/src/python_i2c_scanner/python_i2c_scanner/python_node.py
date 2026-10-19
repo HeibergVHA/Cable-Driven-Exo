@@ -1,6 +1,6 @@
 import rclpy
 from rclpy.node import Node
-
+from std_msgs.msg import String
 from smbus2 import SMBus
 
 class PythonNode(Node):
@@ -11,6 +11,9 @@ class PythonNode(Node):
     def __init__(self):
         super().__init__('tca_scanner')
         self.scan()
+
+        self.tca_scanner_pub = self.create_publisher(
+        String, 'tca_scanner', 10)
 
     def tcaselect(self, bus, channel):
         if channel > 7:
@@ -37,6 +40,8 @@ class PythonNode(Node):
                     try:
                         bus.read_byte(addr)
                         self.get_logger().info(f"  Found I2C 0x{addr:02X}")
+                        msg = f"ch: {ch}  addr: 0x{addr:02X}"
+                        self.tca_scanner_pub.publish(msg)
                     except OSError:
                         # print(f"  No device found")
                         pass  # no device at this address
