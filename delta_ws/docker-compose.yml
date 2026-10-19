@@ -4,11 +4,10 @@ services:
       context: .
       platforms: [linux/arm64]
     image: my-ros2-app:latest
-    volumes:
+    volumes: # mount workspace?
       - ./src/python_package2343/python_package2343:/ws/install/python_package2343/lib/python3.12/site-packages/python_package2343
-    network_mode: host        # simplest way to get DDS discovery working
+    network_mode: host        # DDS discovery
     ipc: host
-    #privileged: true          # or replace with specific devices below
     devices:
       - /dev/i2c-1:/dev/i2c-1
     #   - /dev/gpiochip4      # Pi 5 header GPIO (RP1)
