@@ -1,55 +1,66 @@
 import rclpy
 from rclpy.node import Node
-
 from smbus2 import SMBus
 
-class PythonNode(Node):
 
+class PythonNode(Node):
     TCAADDR = 0x70
     BUS = 1
+    AS5600_ADDR = 0x36
 
     def __init__(self):
         super().__init__('tca_scanner')
-        self.scan()
+        self.scan_sensors()
 
     def tcaselect(self, bus, channel):
-        if channel > 7:
-            return
         bus.write_byte(self.TCAADDR, 1 << channel)
 
     def tcadisable(self, bus):
         bus.write_byte(self.TCAADDR, 0x00)
 
-    def scan(self):
+    def read_angle(self, bus, addr=0x36):
+        data = bus.read_i2c_block_data(addr, 0x0E, 2)
+
+        raw = ((data[0] & 0x0F) << 8) | data[1]
+        degrees = raw * 360.0 / 4096.0
+
+        return raw, degrees
+
+    def scan_sensors(self):
         with SMBus(self.BUS) as bus:
-            self.get_logger().info('TCA Scanner')
+            try:
+                for ch in range(8):
+                    self.tcaselect(bus, ch)
 
-            for ch in range(8):
-                self.tcaselect(bus, ch)
-                self.get_logger().info(f"TCA Port #{ch}")
-
-                for addr in range(0x03, 0x78):  # valid 7-bit addresses
-                    if addr == self.TCAADDR:
-                        continue
                     try:
-                        bus.read_byte(addr)
-                        self.get_logger().info(f"  Found I2C 0x{addr:02X}")
+                        raw, degrees = self.read_angle(
+                            bus, self.AS5600_ADDR
+                        )
+
+                        self.get_logger().info(
+                            f"Channel {ch}: "
+                            f"Raw={raw}, Angle={degrees:.2f} degrees"
+                        )
+
                     except OSError:
-                        # print(f"  No device found")
-                        pass  # no device at this address
+                        self.get_logger().info(
+                            f"Channel {ch}: No AS5600 detected"
+                        )
 
-            self.tcadisable(bus)  # leave all channels off
-            self.get_logger().info("done")
-
-
+            finally:
+                self.tcadisable(bus)
 
 
 def main(args=None):
     rclpy.init(args=args)
-    node = PythonNode()
-    #rclpy.spin_once(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    node = None
+
+    try:
+        node = PythonNode()
+    finally:
+        if node is not None:
+            node.destroy_node()
+        rclpy.shutdown()
 
 
 if __name__ == '__main__':
