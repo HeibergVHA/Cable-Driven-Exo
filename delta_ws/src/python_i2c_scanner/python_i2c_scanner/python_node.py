@@ -22,7 +22,7 @@ class PythonNode(Node):
 
     def scan(self):
         with SMBus(self.BUS) as bus:
-            self.get_logger().info('TCAScanner')
+            self.get_logger().info('TCA Scanner')
 
             for ch in range(8):
                 self.tcaselect(bus, ch)
@@ -39,7 +39,7 @@ class PythonNode(Node):
                         pass  # no device at this address
 
             self.tcadisable(bus)  # leave all channels off
-            print("done")
+            self.get_logger().info("done")
 
 
 
