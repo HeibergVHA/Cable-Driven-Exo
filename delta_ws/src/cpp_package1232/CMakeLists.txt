@@ -10,6 +10,13 @@ find_package(ament_cmake REQUIRED)
 # uncomment the following section in order to fill in
 # further dependencies manually.
 # find_package(<dependency> REQUIRED)
+find_package(rclcpp REQUIRED)
+
+add_executable(AS5600_reader src/AS5600_reader.cpp)
+ament_target_dependencies(AS5600_reader rclcpp)
+
+install(TARGETS as5600_reader DESTINATION lib/${PROJECT_NAME})
+ament_package()
 
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
