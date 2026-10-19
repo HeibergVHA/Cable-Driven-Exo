@@ -47,7 +47,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         build-essential cmake git gdb ccache \
         python3-pip python3-colcon-common-extensions python3-rosdep \
-        i2c-tools vim nano bash-completion \
+        i2c-tools python3-smbus2 vim nano bash-completion \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies declared in package.xml files, then discard the source
