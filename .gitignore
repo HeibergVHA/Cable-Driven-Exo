@@ -1,1 +1,37 @@
+# Daran's vendor library bundle (PDFs, Arduino/STM32/Matlab examples)
 delta_motors/4-库函数/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.env
+
+# Tests and tooling
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ROS 2 / colcon workspace output
+build/
+install/
+log/
+
+# Recorded data and plots from experiments and simulations
+*.bag
+*.mcap
+data/
+
+# Editors (.idea/ itself is tracked; its own .gitignore covers workspace files)
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
