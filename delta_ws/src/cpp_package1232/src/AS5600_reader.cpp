@@ -37,7 +37,7 @@ public:
             channels_.push_back(static_cast<uint8_t>(ch));
         }
 
-        publisher_ = create_publisher<sensor_msgs::msg::JointState>(topic, 10);
+        publisher_ = create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
 
 
 
