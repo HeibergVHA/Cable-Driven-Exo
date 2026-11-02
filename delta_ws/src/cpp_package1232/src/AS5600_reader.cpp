@@ -1,6 +1,3 @@
-//###############################
-//########## CHAT CODE ##########
-//###############################
 #include <rclcpp/rclcpp.hpp>
 
 #include <linux/i2c-dev.h>
@@ -8,140 +5,118 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <chrono>
 #include <cstdint>
-#include <string>
+#include <memory>
 #include <stdexcept>
+#include <vector>
 
 class AS5600Reader : public rclcpp::Node
 {
 public:
     AS5600Reader() : Node("as5600_reader")
     {
-        // Configuration
-        bus_number_ = 1;
-        mux_address_ = 0x70;
-        sensor_address_ = 0x36;
+        declare_parameter<double>("publish_rate_hz", 200.0);       // Read frequency
+        declare_parameter<std::vector<int64_t>>("channels", std::vector<int64_t>{2, 3});
 
-        channel_1_ = 2;
-        channel_2_ = 3;
+        const double rate_hz = get_parameter("publish_rate_hz").as_double();
+        const auto raw_channels = get_parameter("channels").as_integer_array();
 
-        // Open I2C bus
-        const std::string device =
-            "/dev/i2c-" + std::to_string(bus_number_);
+        // validate parameters
+        if (rate_hz <= 0.0) {
+            throw std::runtime_error("publish_rate_hz must be > 0");
+        }
+        if (raw_channels.empty()) {
+            throw std::runtime_error("channels must not be empty");
+        }
+        for (const auto ch : raw_channels) {
+            if (ch < 0 || ch > 7) {
+                throw std::runtime_error("each channel must be in the range 0-7");
+            }
+            channels_.push_back(static_cast<uint8_t>(ch));
+        }
 
-        i2c_fd_ = open(device.c_str(), O_RDWR);
+        const auto period = 1000.0/rate_hz;
+        timer_ = create_wall_timer(period, [this] { read_sensors(); });
 
-        if (i2c_fd_ < 0) {
-            throw std::runtime_error("Failed to open " + device);
+        fd_ = open("/dev/i2c-1", O_RDWR);
+        if (fd_ < 0) {
+            throw std::runtime_error("Failed to open /dev/i2c-1");
         }
 
         RCLCPP_INFO(get_logger(), "AS5600 reader started");
-
-        // Read continuously at 20 Hz
-        timer_ = create_wall_timer(
-            std::chrono::milliseconds(50),
-            std::bind(&AS5600Reader::read_sensors, this));
     }
 
     ~AS5600Reader() override
     {
-        if (i2c_fd_ >= 0) {
-            // Disable all multiplexer channels
-            try {
-                select_mux_channel(0x00);
-            } catch (...) {
-                // Ignore errors during shutdown
-            }
-
-            close(i2c_fd_);
+        if (fd_ >= 0) {
+            try { select_channel(0x00); } catch (...) {}
+            close(fd_);
         }
     }
 
 private:
-    int i2c_fd_{-1};
+    static constexpr uint8_t kMuxAddr    = 0x70;
+    static constexpr uint8_t kSensorAddr = 0x36;
+    static constexpr uint8_t kAngleReg   = 0x0E;
 
-    int bus_number_;
-    uint8_t mux_address_;
-    uint8_t sensor_address_;
-
-    uint8_t channel_1_;
-    uint8_t channel_2_;
-
+    int fd_{-1};
+    std::vector<uint8_t> channels_;          // FIX: member instead of a local
     rclcpp::TimerBase::SharedPtr timer_;
 
-    void select_mux_channel(uint8_t mask)
+    void set_address(uint8_t addr)
     {
-        if (ioctl(i2c_fd_, I2C_SLAVE, mux_address_) < 0) {
-            throw std::runtime_error("Failed to select I2C multiplexer");
+        if (ioctl(fd_, I2C_SLAVE, addr) < 0) {
+            throw std::runtime_error("Failed to set I2C address");
         }
+    }
 
-        if (write(i2c_fd_, &mask, 1) != 1) {
+    void select_channel(uint8_t mask)
+    {
+        set_address(kMuxAddr);
+        if (write(fd_, &mask, 1) != 1) {
             throw std::runtime_error("Failed to write multiplexer channel");
         }
     }
 
-    uint16_t read_raw_angle(uint8_t channel)
+    double read_angle_deg(uint8_t channel)
     {
-        // Select the multiplexer channel
-        select_mux_channel(1U << channel);
+        select_channel(static_cast<uint8_t>(1U << channel));
+        set_address(kSensorAddr);
 
-        // Select AS5600 ANGLE register 0x0E
-        if (ioctl(i2c_fd_, I2C_SLAVE, sensor_address_) < 0) {
-            throw std::runtime_error("Failed to select AS5600 address");
-        }
-
-        uint8_t reg = 0x0E;
-
-        if (write(i2c_fd_, &reg, 1) != 1) {
-            throw std::runtime_error("Failed to select angle register");
-        }
-
-        // Read MSB and LSB
+        uint8_t reg = kAngleReg;
         uint8_t data[2];
-
-        if (read(i2c_fd_, data, 2) != 2) {
+        if (write(fd_, &reg, 1) != 1 || read(fd_, data, 2) != 2) {
             throw std::runtime_error("Failed to read AS5600 angle");
         }
 
-        // AS5600 angle is a 12-bit value
-        return (static_cast<uint16_t>(data[0] & 0x0F) << 8)
-               | data[1];
+        const uint16_t raw = ((data[0] & 0x0F) << 8) | data[1];
+        return raw * 360.0 / 4096.0;
     }
 
     void read_sensors()
     {
         try {
-            const uint16_t raw1 = read_raw_angle(channel_1_);
-            const uint16_t raw2 = read_raw_angle(channel_2_);
-
-            const double angle1 = raw1 * 360.0 / 4096.0;
-            const double angle2 = raw2 * 360.0 / 4096.0;
-
-            RCLCPP_INFO(
-                get_logger(),
-                "Sensor 1 (CH %u): %.2f deg | Sensor 2 (CH %u): %.2f deg",
-                channel_1_, angle1,
-                channel_2_, angle2);
-
+            for (const auto ch : channels_) {
+                RCLCPP_INFO(get_logger(), "CH %u: %.2f deg", static_cast<unsigned>(ch), read_angle_deg(ch));
+            }
         } catch (const std::exception &e) {
-            RCLCPP_ERROR(get_logger(), "%s", e.what());
+            // Throttled error messages
+            RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 200, "%s", e.what());
         }
     }
 };
 
-int main(int argc, char * argv[])
+int main(int argc, char *argv[])
 {
     rclcpp::init(argc, argv);
-
+    int exit_code = 0;
     try {
-        auto node = std::make_shared<AS5600Reader>();
-        rclcpp::spin(node);
+        rclcpp::spin(std::make_shared<AS5600Reader>());
     } catch (const std::exception &e) {
-        RCLCPP_FATAL(
-            rclcpp::get_logger("as5600_reader"),
-            "%s", e.what());
+        RCLCPP_FATAL(rclcpp::get_logger("as5600_reader"), "%s", e.what());
+        exit_code = 1;
     }
-
     rclcpp::shutdown();
-    return 0;
+    return exit_code;
 }
