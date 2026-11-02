@@ -14,7 +14,7 @@ find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
 
 add_executable(AS5600_reader src/AS5600_reader.cpp)
-ament_target_dependencies(AS5600_reader rclcpp)
+ament_target_dependencies(AS5600_reader rclcpp sensor_msgs)
 
 install(TARGETS AS5600_reader DESTINATION lib/${PROJECT_NAME})
 
