@@ -1,4 +1,5 @@
 #include <rclcpp/rclcpp.hpp>
+#include <sensor_msgs/msg/joint_state.hpp> 
 
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
@@ -36,6 +37,10 @@ public:
             channels_.push_back(static_cast<uint8_t>(ch));
         }
 
+        publisher_ = create_publisher<sensor_msgs::msg::JointState>(topic, 10);
+
+
+
         const auto period = std::chrono::duration_cast<std::chrono::nanoseconds>(
             std::chrono::duration<double>(1.0 / rate_hz));   // 1/rate = seconds
         timer_ = create_wall_timer(period, [this] { read_sensors(); });
@@ -64,6 +69,8 @@ private:
     int fd_{-1};
     std::vector<uint8_t> channels_;          // FIX: member instead of a local
     rclcpp::TimerBase::SharedPtr timer_;
+    sensor_msgs::msg::JointState joint_state_;
+    rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_;
 
     void set_address(uint8_t addr)
     {
@@ -98,9 +105,15 @@ private:
     void read_sensors()
     {
         try {
+            // for (const auto ch : channels_) {
+            //     RCLCPP_INFO(get_logger(), "CH %u: %.2f deg", static_cast<unsigned>(ch), read_angle_deg(ch));
+            // }
             for (const auto ch : channels_) {
-                RCLCPP_INFO(get_logger(), "CH %u: %.2f deg", static_cast<unsigned>(ch), read_angle_deg(ch));
+                joint_state_.position[i] = read_angle_deg(ch);
             }
+            joint_state_.header.stamp = now();
+            publisher_->publish(joint_state_);
+
         } catch (const std::exception &e) {
             // Throttled error messages
             RCLCPP_ERROR_THROTTLE(get_logger(), *get_clock(), 200, "%s", e.what());
