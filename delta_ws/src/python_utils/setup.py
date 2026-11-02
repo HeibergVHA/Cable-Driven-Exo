@@ -28,7 +28,8 @@ setup(
     },
     entry_points={
         'console_scripts': [
-        'python_node = python_utils.python_node:main',
+        'i2c_scanner_node = python_utils.i2c_scanner_node:main',
+        'topic_plotter = python_utils.topic_plotter:main',
         ],
     },
 )

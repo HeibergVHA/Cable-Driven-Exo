@@ -14,6 +14,7 @@ services:
       - ros-build:/ws/build           # build artifacts persist between runs
       - ros-install:/ws/install
       - ros-log:/ws/log
+      - /tmp/.X11-unix:/tmp/.X11-unix
     devices:
       - /dev/i2c-1
       # - /dev/gpiochip4
@@ -22,6 +23,7 @@ services:
       - ROS_DOMAIN_ID=7
       - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
       - ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
+      - DISPLAY=${DISPLAY}
     command: bash
 
   # ---- Deployment: self-contained image with compiled code baked in ----
