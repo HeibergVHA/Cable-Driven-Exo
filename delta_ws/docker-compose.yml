@@ -18,6 +18,10 @@ services:
       - /dev/i2c-1
       # - /dev/gpiochip4
       # - /dev/ttyUSB0
+    environment:
+      - ROS_DOMAIN_ID=7
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
     command: bash
 
   # ---- Deployment: self-contained image with compiled code baked in ----
@@ -31,6 +35,10 @@ services:
     ipc: host
     devices:
       - /dev/i2c-1
+    environment:
+      - ROS_DOMAIN_ID=7
+      - RMW_IMPLEMENTATION=rmw_fastrtps_cpp
+      - ROS_AUTOMATIC_DISCOVERY_RANGE=SUBNET
     command: ros2 launch python_utils abc.launch.py
     restart: unless-stopped
 
