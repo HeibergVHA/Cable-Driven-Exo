@@ -16,13 +16,19 @@ class AS5600Reader : public rclcpp::Node
 public:
     AS5600Reader() : Node("as5600_reader")
     {
+        declare_parameter<double>("publish_rate_hz", 200.0);       // Read/publish frequency
+        declare_parameter<std::vector<int64_t>>("channels", {2, 3});
+        const double rate_hz        = get_parameter("publish_rate_hz").as_double();
+        const auto channels_ = get_parameter("channels").as_integer_array();
+        std::vector<uint8_t> channels(channels_.begin(), channels_.end());
+
         fd_ = open("/dev/i2c-1", O_RDWR);
         if (fd_ < 0) {
             throw std::runtime_error("Failed to open /dev/i2c-1");
         }
 
         timer_ = create_wall_timer(
-            std::chrono::milliseconds(50), [this] { read_sensors(); });
+            std::chrono::milliseconds(1.0/rate_hz), [this] { read_sensors(); });
 
         RCLCPP_INFO(get_logger(), "AS5600 reader started");
     }
@@ -39,7 +45,6 @@ private:
     static constexpr uint8_t kMuxAddr    = 0x70;
     static constexpr uint8_t kSensorAddr = 0x36;
     static constexpr uint8_t kAngleReg   = 0x0E;
-    static constexpr std::array<uint8_t, 2> kChannels{2, 3};
 
     int fd_{-1};
     rclcpp::TimerBase::SharedPtr timer_;
@@ -77,7 +82,7 @@ private:
     void read_sensors()
     {
         try {
-            for (auto ch : kChannels) {
+            for (auto ch : Channels) {
                 RCLCPP_INFO(get_logger(), "CH %u: %.2f deg", ch, read_angle_deg(ch));
             }
         } catch (const std::exception &e) {
