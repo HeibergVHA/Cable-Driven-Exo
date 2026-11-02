@@ -108,8 +108,8 @@ private:
             // for (const auto ch : channels_) {
             //     RCLCPP_INFO(get_logger(), "CH %u: %.2f deg", static_cast<unsigned>(ch), read_angle_deg(ch));
             // }
-            for (const auto ch : channels_) {
-                joint_state_.position[i] = read_angle_deg(ch);
+            for (size_t i = 0; i < channels_.size(); ++i) {
+                joint_state_.position[i] = read_angle_deg(channels_[i]);
             }
             joint_state_.header.stamp = now();
             publisher_->publish(joint_state_);
