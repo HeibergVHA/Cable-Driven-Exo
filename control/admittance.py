@@ -17,6 +17,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
     
 import numpy as np
+import numpy.typing as npt
 
 # fr-kinamtics.py has a hyphen in its name, so load it by path.
 _spec = importlib.util.spec_from_file_location(
@@ -31,24 +32,21 @@ def _vec(*values):
 
 @dataclass
 class AdmittanceParams:
-    # Virtual model, per joint. Lower mass/damping feels lighter but is
-    # less stable: tune down slowly on the real exo.
-    mass: np.ndarray = _vec(0.05, 0.05)          # [kg m^2]
-    damping: np.ndarray = _vec(0.5, 0.5)         # [Nm s/rad]
-    stiffness: np.ndarray = _vec(0.0, 0.0)       # [Nm/rad], 0 = transparent
-    q_eq: np.ndarray = _vec(0.0, 0.0)            # spring rest angle [rad]
 
-    # Safety limits on the reference.
-    q_min: np.ndarray = _vec(np.radians(-10), np.radians(-30))   # TODO
-    q_max: np.ndarray = _vec(np.radians(120), np.radians(150))   # TODO
-    qd_max: np.ndarray = _vec(2.0, 2.0)          # [rad/s]
+    mass: npt.NDArray[np.float64] = _vec(0.05, 0.05)          # [kg m^2]
+    damping: npt.NDArray[np.float64] = _vec(0.5, 0.5)         # [Nm s/rad]
+    stiffness: npt.NDArray[np.float64] = _vec(0.0, 0.0)       # [Nm/rad], 0 = transparent
+    q_eq: npt.NDArray[np.float64] = _vec(0.0, 0.0)            # spring rest angle [rad]
 
-    # Human torque estimate.
+    q_min: npt.NDArray[np.float64] = _vec(np.radians(-30), np.radians(-10)) # MAX
+    q_max: npt.NDArray[np.float64] = _vec(np.radians(150), np.radians(120)) # MIN
+    qd_max: npt.NDArray[np.float64] = _vec(2.0, 2.0)          # [rad/s]
+
     cutoff_hz: float = 15.0                      # low-pass on the estimate
-    deadband: np.ndarray = _vec(0.05, 0.05)      # [Nm], hides model bias
-    # Lumped joint-side friction tau_f = b qd + tau_c tanh(qd / 0.05). TODO identify.
-    friction_viscous: np.ndarray = _vec(0.0, 0.0)   # [Nm s/rad]
-    friction_coulomb: np.ndarray = _vec(0.0, 0.0)   # [Nm]
+    deadband: npt.NDArray[np.float64] = _vec(0.05, 0.05)      # [Nm], hides model bias
+    
+    friction_viscous: npt.NDArray[np.float64] = _vec(0.0, 0.0)   # [Nm s/rad]
+    friction_coulomb: npt.NDArray[np.float64] = _vec(0.0, 0.0)   # [Nm]
 
 
 def friction_torque(qd, params):

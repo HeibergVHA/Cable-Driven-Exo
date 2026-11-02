@@ -17,6 +17,8 @@ from matplotlib.widgets import Slider
 # fr-kinamtics.py has a hyphen in its name, so load it by path.
 _spec = importlib.util.spec_from_file_location(
     "kinematics", Path(__file__).with_name("fr-kinamtics.py"))
+if _spec is None or _spec.loader is None:
+    raise ImportError("cannot load fr-kinamtics.py next to " + __file__)
 kin = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(kin)
 

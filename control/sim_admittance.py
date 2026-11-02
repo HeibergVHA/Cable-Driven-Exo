@@ -46,7 +46,7 @@ def follow_torque(t, q, qd):
 
 
 def human_torque(t, q=None, qd=None):
-    """Test profile: push flexion, release, push abduction, push both."""
+    """Test profile: push abduction, release, push flexion, push both."""
     tau = np.zeros(2)
     if 0.5 <= t < 1.5:
         tau[1] = 0.6
@@ -132,7 +132,7 @@ def plot(log, save=None):
     fig, axes = plt.subplots(2, 2, figsize=(11, 6.5), sharex=True, facecolor=surface)
     fig.suptitle("Admittance control, simulated", color=text, x=0.06, ha="left")
     t = log["t"]
-    for j, name in enumerate(["q0 abduction", "q1 flexion"]):
+    for j, name in enumerate(["q1 flexion", "q2 abduction"]):
         top, bottom = axes[0, j], axes[1, j]
         if np.isnan(log["q_human"][:, j]).all():
             top.plot(t, np.degrees(log["q_ref"][:, j]), color=blue, lw=2,

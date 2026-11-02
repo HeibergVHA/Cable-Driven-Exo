@@ -79,10 +79,17 @@ def test_rnea_matches_mass_matrix():
                        kin.mass_matrix(q) @ qdd + bias)
 
 
-def motor_readings(q, tau_human_true):
-    """Motor angles/torques of a static exo held against a human torque."""
+def motor_readings(q, tau_human_true, ctrl=None):
+    """Motor angles/torques of an exo held at q against a human torque.
+
+    With `ctrl`, the torque also includes the dynamics of the motion the
+    controller commands, as a perfectly tracking position loop would see.
+    """
     theta_m = kin.tendon_jacobian() @ q / kin.SPOOL_RADIUS
-    tau_joint = kin.gravity_torque(q) - tau_human_true
+    if ctrl is None:
+        tau_joint = kin.gravity_torque(q) - tau_human_true
+    else:
+        tau_joint = kin.inverse_dynamics(q, ctrl.qd_ref, ctrl.qdd_ref) - tau_human_true
     tau_m = kin.loop_forces_for_joint_torque(tau_joint) * kin.SPOOL_RADIUS
     return theta_m, tau_m
 
@@ -100,8 +107,8 @@ def test_constant_push_gives_velocity_torque_over_damping():
     q = np.radians([30.0, 45.0])
     push = np.array([0.0, 0.4])
     ctrl = AdmittanceController(params, DT, q)
-    for _ in range(400):  # 2 s, many virtual time constants
-        ctrl.step(*motor_readings(q, push))
+    for _ in range(200):  # 1 s = 10 virtual time constants, stays inside the limits
+        ctrl.step(*motor_readings(q, push, ctrl))
     assert np.allclose(ctrl.qd_ref, push / params.damping, atol=1e-3)
 
 

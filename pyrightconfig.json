@@ -5,4 +5,5 @@
     "/usr/lib/python3/dist-packages"
   ],
   "reportUnusedCallResult": "none"
+  "reportMissingTypeArgument": "none"
 }
