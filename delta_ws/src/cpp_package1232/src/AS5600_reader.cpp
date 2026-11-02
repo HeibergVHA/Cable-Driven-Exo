@@ -37,6 +37,12 @@ public:
             channels_.push_back(static_cast<uint8_t>(ch));
         }
 
+        joint_state_.name.resize(channels_.size());
+        joint_state_.position.resize(channels_.size());
+        for (size_t i = 0; i < channels_.size(); ++i) {
+            joint_state_.name[i] = "joint_" + std::to_string(channels_[i]);
+        }
+        
         publisher_ = create_publisher<sensor_msgs::msg::JointState>("joint_states", 10);
 
 
