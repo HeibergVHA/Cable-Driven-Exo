@@ -31,7 +31,7 @@ services:
     ipc: host
     devices:
       - /dev/i2c-1
-    command: ros2 launch python_i2c_scanner abc.launch.py
+    command: ros2 launch python_utils abc.launch.py
     restart: unless-stopped
 
 volumes:

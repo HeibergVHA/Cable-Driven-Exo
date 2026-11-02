@@ -5,7 +5,7 @@ from launch_ros.actions import Node
 def generate_launch_description():
 
     python_node = Node(
-        package='python_i2c_scanner',
+        package='python_utils',
         executable='python_node',
         name='python_node',
         output='screen'

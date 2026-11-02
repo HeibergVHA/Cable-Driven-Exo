@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 import os
 from glob import glob
 
-package_name = 'python_i2c_scanner'
+package_name = 'python_utils'
 
 setup(
     name=package_name,
@@ -28,7 +28,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
-        'python_node = python_i2c_scanner.python_node:main',
+        'python_node = python_utils.python_node:main',
         ],
     },
 )
