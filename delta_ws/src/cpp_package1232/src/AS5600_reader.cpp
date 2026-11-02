@@ -36,7 +36,8 @@ public:
             channels_.push_back(static_cast<uint8_t>(ch));
         }
 
-        const auto period = 1000.0/rate_hz;
+        const auto period = std::chrono::duration_cast<std::chrono::nanoseconds>(
+            std::chrono::duration<double>(1.0 / rate_hz));   // 1/rate = seconds
         timer_ = create_wall_timer(period, [this] { read_sensors(); });
 
         fd_ = open("/dev/i2c-1", O_RDWR);
