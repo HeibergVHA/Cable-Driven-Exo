@@ -47,30 +47,33 @@ D2 = D0
 D3 = D1
 D4 = 0.200
 D5 = 0.200
+D6 = 0.250  # TODO: measure. Placeholder forearm length, elbow to cuff [m]
 
-# The same chain written as axis + offset at the zero pose (all in frame 0).
-# The prototype has two motors, so only q1 and q2 are active. Uncomment q3/q4
-# (and add a Link for each) when their motors are mounted.
+
 JOINTS = [
     Joint("q1_flexion", np.array([0.0, 0.0, 1.0]), np.array([0.0, 0.0, -D0])),
     Joint("q2_abduction", np.array([0.0, -1.0, 0.0]), np.array([0.0, D1, D2])),
-    # Joint("q3_rotation", np.array([-1.0, 0.0, 0.0]), np.array([-D4, -D3, 0.0])),
-    # Joint("q4_elbow", np.array([0.0, -1.0, 0.0]), np.array([-D5, 0.0, 0.0])),
+    #Joint("q3_rotation", np.array([-1.0, 0.0, 0.0]), np.array([-D4, -D3, 0.0])),
+    #Joint("q4_elbow", np.array([0.0, -1.0, 0.0]), np.array([-D5, 0.0, 0.0])),
 ]
 LINKS = [
     Link(0.0, np.zeros(3)),
-    # TODO: mass, COM and inertia from CAD. Placeholder: a 0.4 m, 0.5 kg rod
-    # along -X on the arm's centre line (m L^2 / 12 about its centre).
-    Link(0.5, np.array([-(D4 + D5) / 2, -D3, 0.0]),
-         np.diag([0.0001, 0.00667, 0.00667])),
+    Link(0.5, np.array([-(D4 + D5) / 2, -D3, 0.0]), np.diag([0.0001, 0.00667, 0.00667])),
+    # With q3/q4 active, replace the Link above with these three. TODO: real
+    # values from CAD. Placeholders: rods along -X, the first two split the 0.5 kg
+    # upper arm, the forearm is 0.3 kg and straight at q4 = 0.
+    #Link(0.25, np.array([-D4 / 2, -D3, 0.0]), np.diag([0.00005, 0.00083, 0.00083])),
+    #Link(0.25, np.array([-D5 / 2, 0.0, 0.0]), np.diag([0.00005, 0.00083, 0.00083])),
+    #Link(0.3, np.array([-D6 / 2, 0.0, 0.0]), np.diag([0.00005, 0.00156, 0.00156])),
 ]
-# End point: the elbow, d3 back to the centre line and d4 + d5 down the arm.
-# With q3/q4 active this becomes the last joint's own end point instead.
-END_EFFECTOR = np.array([-(D4 + D5), -D3, 0.0])
 
-# Convention: row i = loop i moved [m] per rad of each joint. The signed loop
-# force F_i (strand tension difference) gives joint torques tau = J_a^T F.
+END_EFFECTOR = np.array([-(D4 + D5), -D3, 0.0])
+# With q3/q4 active, use the cuff in the frame of q4 instead:
+#END_EFFECTOR = np.array([-D6, 0.0, 0.0])
+
 PULLEY_RADII = [0.05, 0.05]  # pulley radii for q1, q2 [m]
+# With q3/q4 active, use this instead. TODO: measure r2 and r3, these are placeholders.
+#PULLEY_RADII = [0.05, 0.05, 0.05, 0.05]  # pulley radii for q1, q2, q3, q4 [m]
 SPOOL_RADIUS = 0.025         # cable spool radius on the PDA-04 output [m]
 PRETENSION = 50.0            # TODO: loop pretension [N], measure after tensioning
 MOTOR_INERTIA = 0.0          # TODO: PDA-04 rotor inertia seen at the output [kg m^2]
@@ -110,7 +113,7 @@ def jacobian(q, point_in_last_frame=END_EFFECTOR, up_to=None):
     J_a = [[r0,r1,0,0],
           [r0,-r1,0,0],
           [r0,r1,r2,r3],
-          [r0,r1,r2,-r3]]
+          [r0,r1,r2,-r3]]x
 
     Geometric Jacobian (6 x n) of a point fixed in joint `up_to`'s frame.
 
@@ -146,6 +149,12 @@ def tendon_jacobian():
     r0, r1 = PULLEY_RADII
     return np.array([[r0, r1],
                      [r0, -r1]])
+    # With q3/q4 active, use this instead of the two lines above:
+    #r0, r1, r2, r3 = PULLEY_RADII
+    #return np.array([[r0, r1, 0.0, 0.0],
+    #                 [r0, -r1, 0.0, 0.0],
+    #                 [r0, r1, r2, r3],
+    #                 [r0, r1, r2, -r3]])
 
 
 def joint_angles_from_motors(theta_m):
