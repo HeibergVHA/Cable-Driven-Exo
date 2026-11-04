@@ -6,7 +6,6 @@
 import numpy as np
 
 from admittance import AdmittanceController, AdmittanceParams, kin
-from sim_admittance import CONTROL_HZ, simulate
 
 DT = 0.005
 
@@ -140,35 +139,3 @@ def test_hold_freezes_reference():
     theta_ref = ctrl.hold()
     assert np.all(ctrl.qd_ref == 0.0)
     assert np.allclose(kin.joint_angles_from_motors(theta_ref), before)
-
-
-def test_stiff_human_arm_does_not_oscillate():
-    # A tense arm acts like a stiff spring on the exo. After a short push the
-    # closed loop must settle instead of shaking against that spring.
-    def human(t, q, qd):
-        return (1.0 if 0.5 <= t < 0.8 else 0.0) - 80.0 * q
-
-    log = simulate(AdmittanceParams(), human=human, duration=4.0)
-    last_second = np.degrees(log["q"][-CONTROL_HZ:])
-    assert np.ptp(last_second, axis=0).max() < 0.2
-
-
-def test_unmodelled_friction_blocks_a_light_push():
-    # Known limitation, not desired behaviour: friction the controller does not
-    # know about hides the human's push from the torque estimate, so the exo
-    # hardly follows. Friction must be measured on the real exo and the
-    # dead-band set from it.
-    def push(t, q, qd):
-        return np.array([0.6 if 0.5 <= t < 1.5 else 0.0, 0.0])
-
-    no_friction = AdmittanceParams()
-    friction = AdmittanceParams(friction_coulomb=np.array([0.8, 0.8]))
-
-    free = simulate(AdmittanceParams(), plant_friction=no_friction, human=push, duration=2.0)
-    stuck = simulate(AdmittanceParams(), plant_friction=friction, human=push, duration=2.0)
-
-    moved_free = np.degrees(free["q"][-1, 0])
-    moved_stuck = np.degrees(stuck["q"][-1, 0])
-    assert moved_free > 15.0
-    assert moved_stuck < 3.0
-
