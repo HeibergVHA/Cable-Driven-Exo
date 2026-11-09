@@ -1,14 +1,4 @@
-"""Kinematics, tendon transmission and dynamics for the exo arm.
-
-The arm is a serial chain of revolute joints. Each joint is described by
-its rotation axis and its position, both expressed in the frame of the
-previous joint at zero angle. Adding the third shoulder rotation or the
-elbow later only means adding entries to JOINTS / LINKS.
-
-Base frame 0 (from the whiteboard drawing, origin at the shoulder centre):
-    X0 = up, Z0 = right (parallel to joint 1's axis), Y0 = Z0 x X0
-Zero pose: upper arm hanging straight down along -X0.
-"""
+"""Kinematics, tendon transmission and dynamics for the exo arm."""
 
 from dataclasses import dataclass, field
 
@@ -30,21 +20,16 @@ class Joint:
 @dataclass
 class Link:
     mass: float         # [kg] exo structure moved by this joint (not the human arm)
-    com: FloatArray     # centre of mass in this joint's frame [m]
+    com: FloatArray     # centre of mass [m]
     inertia: FloatArray = field(default_factory=lambda: np.zeros((3, 3)))  # inertia tensor about the centre of mass, in this joint's frame [kg m^2]
 
 
-
-# Link lengths [m] from the whiteboard FK, where
-#   T01 = [R01 | (0, 0, -d0)] Rz(q1),   T12 = [R12 | (d1, 0, d2)] Rz(q2),
-#   T23 = [R23 | (d4, 0, d3)] Rz(q3),   T34 = [R34 | (0, 0, d5)] Rz(q4).
-# d2 == d0 brings joint 2 back to the shoulder centre's Z0 level, and
-# d3 == d1 (along Z2 = -Y0) brings the upper arm back onto the centre, so the
 # axes of q1, q2 and q3 all intersect in the shoulder centre.
-D0 = -0.1005
+D0 = -0.1005 # [m]
 D1 = 0.0935
 D2 = D0
-D3 = D1
+#D3 = D1
+D3 = 0.01
 D4 = 0.200
 D5 = 0.200
 D6 = 0.250  # TODO: measure. Placeholder forearm length, elbow to cuff [m]
@@ -71,16 +56,14 @@ END_EFFECTOR = np.array([-(D4 + D5), -D3, 0.0])
 # With q3/q4 active, use the cuff in the frame of q4 instead:
 #END_EFFECTOR = np.array([-D6, 0.0, 0.0])
 
-PULLEY_RADII = [0.05, 0.05]  # pulley radii for q1, q2 [m]
-# With q3/q4 active, use this instead. TODO: measure r2 and r3, these are placeholders.
-#PULLEY_RADII = [0.05, 0.05, 0.05, 0.05]  # pulley radii for q1, q2, q3, q4 [m]
+PULLEY_RADII = [0.05, 0.05]  # pulley radii for q1, q2 [m] [0.05, 0.05, 0.05, 0.05]
 SPOOL_RADIUS = 0.025         # cable spool radius on the PDA-04 output [m]
-PRETENSION = 50.0            # TODO: loop pretension [N], measure after tensioning
-MOTOR_INERTIA = 0.0          # TODO: PDA-04 rotor inertia seen at the output [kg m^2]
+PRETENSION = 50.0            # TODO: measure loop pretension [N], as for net just a guess
+MOTOR_INERTIA = 0.0          # TODO: PDA-04 rotor inertia seen at the output [kg m^2], is not zero but who knows
 
 
 def rot(axis, q):
-    """Rotation matrix for angle q [rad] about a unit axis (Rodrigues)."""
+    """Rotation matrix for angle q [rad] about its axis."""
     k = np.array([[0.0, -axis[2], axis[1]],
                   [axis[2], 0.0, -axis[0]],
                   [-axis[1], axis[0], 0.0]])
@@ -88,7 +71,8 @@ def rot(axis, q):
 
 
 def forward_kinematics(q):
-    """Return a list of (R, p) for every joint frame plus the end effector.
+    """
+    Return a list of (R, p) for every joint frame plus the end effector.
 
     frames[i] is the world pose of joint i after its rotation,
     frames[-1] is the end effector (R of the last joint, p of the tip).
@@ -105,20 +89,23 @@ def forward_kinematics(q):
 
 
 def jacobian(q, point_in_last_frame=END_EFFECTOR, up_to=None):
-    """ for a 2 dof arm
+    """
     j_12 =[[r0,r1],
           [r0,-r1]]
+
+    J_12^-1 = [[1/2r0,1/2r1],
+             [1/2r0,-1/2r1],
 
     and a 4-dof arm
     J_a = [[r0,r1,0,0],
           [r0,-r1,0,0],
           [r0,r1,r2,r3],
-          [r0,r1,r2,-r3]]x
+          [r0,r1,r2,-r3]]
 
-    Geometric Jacobian (6 x n) of a point fixed in joint `up_to`'s frame.
-
-    Rows 0-2: linear velocity, rows 3-5: angular velocity.
-    Joints after `up_to` do not move the point, so their columns are zero.
+    J_a^-1 = [[1/2r0,1/2r1,0,0],
+             [1/2r0,-1/2r1,0,0],
+             [1/2r0,1/2r1,1/2r2,1/2r3],
+             [1/2r0,1/2r1,1/2r2,-1/2r3]]
     """
     n = len(JOINTS)
     up_to = n - 1 if up_to is None else up_to
@@ -136,7 +123,7 @@ def jacobian(q, point_in_last_frame=END_EFFECTOR, up_to=None):
 
 
 def gravity_torque(q):
-    """Joint torques [Nm] needed to hold the exo structure still at q."""
+    """Joint torques [Nm] needed to hold the exo structure still at q. (at the pos)"""
     tau = np.zeros(len(JOINTS))
     for k, link in enumerate(LINKS):
         Jv = jacobian(q, link.com, up_to=k)[:3]
@@ -149,7 +136,6 @@ def tendon_jacobian():
     r0, r1 = PULLEY_RADII
     return np.array([[r0, r1],
                      [r0, -r1]])
-    # With q3/q4 active, use this instead of the two lines above:
     #r0, r1, r2, r3 = PULLEY_RADII
     #return np.array([[r0, r1, 0.0, 0.0],
     #                 [r0, -r1, 0.0, 0.0],
@@ -158,37 +144,25 @@ def tendon_jacobian():
 
 
 def joint_angles_from_motors(theta_m):
-    """Joint angles [rad] from motor angles [rad], both zeroed at q = 0."""
-    return np.linalg.solve(tendon_jacobian(), SPOOL_RADIUS * np.asarray(theta_m))
+    return np.linalg.solve(tendon_jacobian(), SPOOL_RADIUS * np.asarray(theta_m)) # Joint angles [rad] from motor angles [rad]
 
 
 def joint_torque_from_motors(tau_m):
-    """Joint torques [Nm] produced by the measured motor torques [Nm]."""
     loop_force = np.asarray(tau_m) / SPOOL_RADIUS
-    return tendon_jacobian().T @ loop_force
+    return tendon_jacobian().T @ loop_force # The measured motor torques [Nm].
 
 
 def loop_forces_for_joint_torque(tau):
-    """Signed loop forces [N] needed for joint torques tau."""
-    return np.linalg.solve(tendon_jacobian().T, np.asarray(tau))
+    return np.linalg.solve(tendon_jacobian().T, np.asarray(tau))# Signed loop forces [N]
 
 
 def strand_tensions(loop_force):
-    """Tensions [N] of the two strands of each loop, shape (loops, 2).
-
-    A strand at or below zero has gone slack: the joint then loses
-    stiffness and the motor torque no longer reflects the human's force.
-    """
+    """Tensions [N] of the two strands of each loop, shape (loops, 2)."""
     half = np.asarray(loop_force)[:, None] / 2.0
     return PRETENSION + np.hstack([half, -half])
 
 
-def rnea(q, qd, qdd, gravity=True):
-    """Rigid-body inverse dynamics of the exo links (recursive Newton-Euler).
-
-    Returns tau = M(q) qdd + C(q, qd) qd + g(q) [Nm]. Everything is computed
-    in the base frame; gravity enters as an upward acceleration of the base.
-    """
+def rnea(q, qd, qdd, gravity=True): # recursive Newton-Euler (rnea) dont know what to name it???
     n = len(JOINTS)
     omega = np.zeros(3)
     alpha = np.zeros(3)
@@ -198,7 +172,7 @@ def rnea(q, qd, qdd, gravity=True):
 
     axes, origins, coms, forces, moments = [], [], [], [], []
     for joint, link, qi, qdi, qddi in zip(JOINTS, LINKS, q, qd, qdd):
-        # The joint origin is fixed on the parent body.
+        # The joint origin is fixed on body.
         d = R @ joint.offset
         acc = acc + np.cross(alpha, d) + np.cross(omega, np.cross(omega, d))
         p = p + d
@@ -231,13 +205,13 @@ def rnea(q, qd, qdd, gravity=True):
 
 
 def reflected_motor_inertia():
-    """Motor rotor inertia seen at the joints, J_a^T (I_m / r_s^2) J_a."""
+    """J_a^T (I_m / r_s^2) J_a."""
     J_a = tendon_jacobian()
     return MOTOR_INERTIA / SPOOL_RADIUS**2 * J_a.T @ J_a
 
 
 def mass_matrix(q):
-    """Joint-space inertia M(q) of links plus reflected motors."""
+    """Joint-space inertia M(q)"""
     n = len(JOINTS)
     zero = np.zeros(n)
     M = np.column_stack([rnea(q, zero, np.eye(n)[j], gravity=False)
@@ -246,12 +220,12 @@ def mass_matrix(q):
 
 
 def inverse_dynamics(q, qd, qdd):
-    """Joint torques [Nm] the motors must supply to follow (q, qd, qdd)."""
+    """Joint torques [Nm] follow (q, qd, qdd)."""
     return rnea(q, qd, qdd) + reflected_motor_inertia() @ np.asarray(qdd)
 
 
 def forward_dynamics(q, qd, tau):
-    """Joint accelerations [rad/s^2] for applied joint torques tau."""
+    """Joint accelerations [rad/s^2] """
     bias = inverse_dynamics(q, qd, np.zeros(len(JOINTS)))
     return np.linalg.solve(mass_matrix(q), np.asarray(tau) - bias)
 
@@ -263,7 +237,6 @@ if __name__ == "__main__":
     print("end effector [m] :", np.round(tip, 4))
     print("gravity tau [Nm] :", np.round(gravity_torque(q), 4))
 
-    # Check the analytic Jacobian against finite differences.
     eps = 1e-6
     J_num = np.zeros((3, len(q)))
     for i in range(len(q)):

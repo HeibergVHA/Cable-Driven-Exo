@@ -1,18 +1,7 @@
-"""Run the admittance controller on the real exo, so it follows the arm.
-
+"""
     python3 control/run_exo.py --ids 7 8            # dry run: no motion commands
     python3 control/run_exo.py --ids 7 8 --enable   # moves the motors
     python3 control/run_exo.py --ids 7 --enable     # one motor, see below
-
-With one motor, it drives q1 and q2 must be locked at 0. Add --gravity if the
-arm link is attached and you want its weight compensated. Leave it out for a
-motor without the link.
-
-Start with the arm hanging straight down (q = 0) and nobody pushing: the start
-position becomes the zero and the torque read at start is treated as bias.
-
-Any fault holds the motors at their measured position and ends the program.
-This is not an emergency stop: keep a power switch within reach.
 """
 
 import argparse
@@ -30,10 +19,13 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "delta_motors"))
 CALIBRATION_CYCLES = 50
 PRINT_PERIOD = 0.5                      # [s]
 MAX_CYCLE_TIME = 0.03                   # longest allowed cycle [s]
-MAX_TRACKING_ERROR = np.radians(10.0)   # reference vs measured joint angle [rad]
-MAX_HUMAN_TORQUE = 5.0                  # estimated human torque [Nm]
+MAX_TRACKING_ERROR = np.radians(3.0)    # reference vs measured joint angle [rad]
+MAX_HUMAN_TORQUE = 6.0                  # estimated human torque [Nm]
 LIMIT_MARGIN = np.radians(5.0)          # measured angle past the limits [rad]
 CLOSED_LOOP_STATES = (2, 8)             # dr.current_state: firmware reads 8, library docs say 2
+# Sign of the mode 2 speed feed-forward, per motor CAN ID. Can differ with each motor's
+# configuration, so measure it per motor. Motors not listed get no feed-forward.
+FF_SIGN = {7: -1.0}
 
 
 class Fault(Exception):
@@ -48,6 +40,9 @@ class ExoRunner:
         self.params = params
         self.enable = enable
         self.period = 1.0 / rate_hz
+        unknown = [id_num for id_num in ids if id_num not in FF_SIGN]
+        if enable and unknown:
+            print(f"No FF_SIGN for motor(s) {unknown}: running them without speed feed-forward")
         self.clock = clock
         self.sleep = sleep
         if len(ids) == 1:
@@ -91,7 +86,8 @@ class ExoRunner:
         angles = np.degrees(theta_ref + self.theta_zero)
         speeds = theta_dot_ref * 60.0 / (2.0 * np.pi)
         for id_num, angle, speed in zip(self.ids, angles, speeds):
-            if self.dr.set_angle(id_num=id_num, angle=float(angle), speed=float(speed),
+            speed_ff = FF_SIGN.get(id_num, 0.0) * speed
+            if self.dr.set_angle(id_num=id_num, angle=float(angle), speed=float(speed_ff),
                                  param=0.0, mode=2) is False:
                 raise Fault(f"failed to send to motor {id_num}")
 

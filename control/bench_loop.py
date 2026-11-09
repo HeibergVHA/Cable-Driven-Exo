@@ -6,14 +6,7 @@ One cycle = read every motor, run the controller, send the commands.
     python3 control/bench_loop.py --real          # real motors, READ-ONLY
     python3 control/bench_loop.py --real --ids 7 8
 
---real never sends a motion command: it only sends read requests, and the
-controller's output is thrown away. The motors do not move. Sending takes one
-frame per motor and is not timed in this mode, so the real loop is slightly
-slower than reported.
-
-The fake bus runs the real driver and controller code. Its replies take the CAN
-wire time plus --delay, which is a guess at the motor and USB adapter delay, so
-only --real gives a true figure.
+--real never sends a motion command
 """
 
 import argparse
