@@ -153,7 +153,7 @@ private:
             // }
             for (size_t i = 0; i < channels_.size(); ++i) {
                 joint_state_.position[i] = read_angle_deg(channels_[i]);
-                if (status_out)
+                if (status_out_)
                     joint_sensor_status_.data[i] = read_status(channels_[i]);
             }
             joint_state_.header.stamp = now();
