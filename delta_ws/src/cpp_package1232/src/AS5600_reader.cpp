@@ -15,6 +15,15 @@
 
 // Inspiration drawn from https://github.com/Seeed-Studio/Seeed_Arduino_AS5600/blob/master/src/AS5600.cpp
 
+
+/*
+ros2 run cpp_package1232 AS5600_reader --ros-args \
+    -p publish_rate_hz:=1000.0 \
+    -p channels:="[1, 3]" \
+    -p status_out:=true
+*/
+
+
 class AS5600Reader : public rclcpp::Node
 {
 public:
