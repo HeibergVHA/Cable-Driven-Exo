@@ -26,7 +26,7 @@ public:
 
         const double rate_hz = get_parameter("publish_rate_hz").as_double();
         const auto raw_channels = get_parameter("channels").as_integer_array();
-        const bool status_out_ = get_parameter("status_out").as_bool();
+        status_out_ = get_parameter("status_out").as_bool();
 
         // validate parameters
         if (rate_hz <= 0.0) {
