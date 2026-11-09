@@ -160,7 +160,7 @@ private:
             joint_publisher_->publish(joint_state_);
             
             if (status_out){
-                joint_sensor_status_.header.stamp = now();
+                //joint_sensor_status_.header.stamp = now();
                 status_publisher_->publish(joint_sensor_status_);
             }
 
