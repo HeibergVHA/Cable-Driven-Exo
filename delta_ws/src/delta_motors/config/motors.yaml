@@ -3,8 +3,8 @@ delta_motors:
     motor_ids: [7]          # CAN IDs of the joints on the bus, e.g. [1, 2, 3]
     default_speed: 10.0     # r/min at the output shaft when no speed is given
     accel: 10.0             # r/min/s, trapezoidal acceleration
-    angle_min: -90.0        # software limits in degrees, applied to every command
-    angle_max: 90.0
+    angle_min: -180.0        # software limits in degrees, applied to every command
+    angle_max: 180.0
     feedback_rate_hz: 10.0  # how often angles are read and published (0 = off)
     mock: false             # true = run without hardware
     can_interface: "can0"   # SocketCAN interface of the INNO-MAKER USB2CAN adapter
